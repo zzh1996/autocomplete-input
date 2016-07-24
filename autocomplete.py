@@ -8,15 +8,16 @@ import html
 def google(query, pos=-1):
     url = 'https://www.google.com/complete/search'
     payload = {
-        # 'sclient': 'psy-ab',
-        'gs_ri': 'psy-ab',
+        'client': 'hp',
+        'xhr': 't',
         'q': query,
-        'tch': 1,
-        'ech': '',
         'cp': len(query) if pos < 0 else pos,
-        'hl':'zh-CN'
+        'hl': 'zh-CN'
     }
-    r = requests.get(url, params=payload, timeout=5)
-    j = json.loads(r.text[:-6])
-    d = json.loads(j['d'])
+    headers = {
+        'user-agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/51.0.2704.79 Safari/537.36'
+    }
+    r = requests.get(url, params=payload, headers=headers, timeout=5)
+    d = json.loads(r.text)
+    print(r.text, file=sys.stderr)
     return [html.unescape(i[0]) for i in d[1]]

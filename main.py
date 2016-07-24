@@ -12,15 +12,41 @@ choice_cnt = 0
 lock = threading.Lock()
 text = ''
 pos = 0
+scr = None
+
+
+def render_choice(c, selected):
+    global scr
+    highlight = A_STANDOUT if selected else 0
+    while c:
+        p = c.find('<b>')
+        q = c.find('</b>')
+        if p >= 0 and p < q:
+            scr.addstr(c[:p], highlight)
+            scr.addstr(c[p + 3:q], A_BOLD | highlight)
+            c = c[q + 4:]
+        else:
+            scr.addstr(c, highlight)
+            break
+
+
+def render_all():
+    global lock, choice, choice_cnt, choices, thread_cnt, text, pos, scr
+    scr.clear()
+    scr.addstr(0, 0, text)
+    for i, c in enumerate(choices):
+        scr.move(i + 1, 0)
+        render_choice(c, i == choice)
+    scr.move(0, pos)
+    scr.refresh()
 
 
 class RequestThread(threading.Thread):
-    def __init__(self, text, pos, cnt, stdscr):
+    def __init__(self, text, pos, cnt):
         threading.Thread.__init__(self)
         self.text = text
         self.pos = pos
         self.cnt = cnt
-        self.stdscr = stdscr
 
     def run(self):
         global lock, choice, choice_cnt, choices, thread_cnt, text, pos
@@ -30,40 +56,23 @@ class RequestThread(threading.Thread):
             return
         if thread_cnt == self.cnt or True:
             lock.acquire()
+            choice = 0
             choices.clear()
             for i in r:
                 if i.replace('<b>', '').replace('</b>', '') != self.text:
                     choices.append(i)
             choice_cnt = len(choices)
-            choice = 0
-            for i, c in enumerate(choices):
-                self.stdscr.move(i + 1, 0)
-                render_choice(self.stdscr, c, i == choice)
-            self.stdscr.move(0, pos)
-            self.stdscr.refresh()
+            render_all()
             lock.release()
 
 
-def render_choice(stdscr, c, selected):
-    highlight = A_STANDOUT if selected else 0
-    while c:
-        p = c.find('<b>')
-        q = c.find('</b>')
-        if p >= 0 and p < q:
-            stdscr.addstr(c[:p], highlight)
-            stdscr.addstr(c[p + 3:q], A_BOLD | highlight)
-            c = c[q + 4:]
-        else:
-            stdscr.addstr(c, highlight)
-            break
-
-
 def main(stdscr):
-    global lock, choice, choice_cnt, choices, thread_cnt, text, pos
-    stdscr.clear()
+    global lock, choice, choice_cnt, choices, thread_cnt, text, pos, scr
+    scr = stdscr
+    scr.clear()
     change = False
     while True:
-        k = stdscr.getch()
+        k = scr.getch()
         change = False
         if k == KEY_DOWN:
             lock.acquire()
@@ -100,22 +109,12 @@ def main(stdscr):
             pos += 1
             change = True
 
-        lock.acquire()
-        stdscr.clear()
-        stdscr.addstr(0, 0, text)
-        stdscr.move(0, pos)
-        stdscr.refresh()
-        lock.release()
         if change:
             thread_cnt += 1
-            thread = RequestThread(text, pos, thread_cnt, stdscr)
+            thread = RequestThread(text, pos, thread_cnt)
             thread.start()
         lock.acquire()
-        for i, c in enumerate(choices):
-            stdscr.move(i + 1, 0)
-            render_choice(stdscr, c, i == choice)
-        stdscr.move(0, pos)
-        stdscr.refresh()
+        render_all()
         lock.release()
 
 
