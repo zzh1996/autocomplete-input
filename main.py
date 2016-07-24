@@ -10,6 +10,8 @@ choices = []
 choice = 0
 choice_cnt = 0
 lock = threading.Lock()
+text = ''
+pos = 0
 
 
 class RequestThread(threading.Thread):
@@ -21,9 +23,12 @@ class RequestThread(threading.Thread):
         self.stdscr = stdscr
 
     def run(self):
-        global lock, choice, choice_cnt, choices, thread_cnt
-        r = google(self.text, self.pos)
-        if thread_cnt == self.cnt:
+        global lock, choice, choice_cnt, choices, thread_cnt, text, pos
+        try:
+            r = google(self.text, self.pos)
+        except requests.exceptions.ReadTimeout:
+            return
+        if thread_cnt == self.cnt or True:
             lock.acquire()
             choices.clear()
             for i in r:
@@ -34,7 +39,7 @@ class RequestThread(threading.Thread):
             for i, c in enumerate(choices):
                 self.stdscr.move(i + 1, 0)
                 render_choice(self.stdscr, c, i == choice)
-            self.stdscr.move(0, self.pos)
+            self.stdscr.move(0, pos)
             self.stdscr.refresh()
             lock.release()
 
@@ -54,10 +59,8 @@ def render_choice(stdscr, c, selected):
 
 
 def main(stdscr):
-    global lock, choice, choice_cnt, choices, thread_cnt
+    global lock, choice, choice_cnt, choices, thread_cnt, text, pos
     stdscr.clear()
-    text = ''
-    pos = 0
     change = False
     while True:
         k = stdscr.getch()
@@ -104,11 +107,6 @@ def main(stdscr):
         stdscr.refresh()
         lock.release()
         if change:
-            lock.acquire()
-            choice = 0
-            choice_cnt = 0
-            choices = []
-            lock.release()
             thread_cnt += 1
             thread = RequestThread(text, pos, thread_cnt, stdscr)
             thread.start()

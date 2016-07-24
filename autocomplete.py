@@ -2,6 +2,7 @@
 # encoding: utf-8
 
 import requests, json, sys
+import html
 
 
 def google(query, pos=-1):
@@ -12,9 +13,10 @@ def google(query, pos=-1):
         'q': query,
         'tch': 1,
         'ech': '',
-        'cp': len(query) if pos < 0 else pos
+        'cp': len(query) if pos < 0 else pos,
+        'hl':'zh-CN'
     }
     r = requests.get(url, params=payload, timeout=5)
     j = json.loads(r.text[:-6])
     d = json.loads(j['d'])
-    return [i[0] for i in d[1]]
+    return [html.unescape(i[0]) for i in d[1]]
